@@ -93,13 +93,13 @@ if calculate:
         os.unlink(prefs_path)
 
         # Display data in the specified tabs
-        if school_center_file:
+        if os.path.exists(school_center_file):
             df = pd.read_csv(school_center_file, sep="\t")
             tab1.dataframe(df)
         else:
             tab1.error("School Center file not found.")
         
-        if school_center_distance_file:
+        if os.path.exists(school_center_distance_file):
             df = pd.read_csv(school_center_distance_file, sep="\t")
             tab2.dataframe(df)
         else:
