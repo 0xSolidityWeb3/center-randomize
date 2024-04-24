@@ -11,6 +11,7 @@ st.set_page_config(
 #    page_icon="https://avatars.githubusercontent.com/u/167545222?s=200&v=4", # official logo
    layout="wide",
    initial_sidebar_state="expanded",
+    theme="light",  # Default theme is light
 )
 
 #Sidebar
@@ -24,6 +25,10 @@ with st.sidebar:
     prefs_file = st.sidebar.file_uploader("Upload Preferences file", type="tsv")
 
     calculate = st.sidebar.button("Calculate Centers", type="primary", use_container_width=True)
+
+    # Dark Mode toggle button
+    st.sidebar.markdown("---")
+    dark_mode = st.sidebar.checkbox("Dark Mode", help="Switch to dark mode.")
 
 # Tabs
 tab1, tab2, tab3, tab4, tab5 = st.tabs([
@@ -58,6 +63,32 @@ if prefs_file:
     tab5.dataframe(df)
 else:
     tab5.info("Upload data to view it.", icon="ℹ️")
+
+# Dark Mode theme switcher
+if dark_mode:
+    st.sidebar.write(
+        """
+        <style>
+        body {
+            background-color: #1E1E1E;
+            color: white;
+        }
+        </style>
+        """,
+        unsafe_allow_html=True
+    )
+else:
+    st.sidebar.write(
+        """
+        <style>
+        body {
+            background-color: white;
+            color: black;
+        }
+        </style>
+        """,
+        unsafe_allow_html=True
+    )
 
 
 # Function to run the center randomizer program
