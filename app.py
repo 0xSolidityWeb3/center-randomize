@@ -6,18 +6,16 @@ import pandas as pd
 import streamlit as st
 from streamlit_folium import st_folium
 
-
-#Page Setup
+# Page Setup
 st.set_page_config(
-   page_title="MOEST Exam Center Calculator",
-   page_icon=":school:",
-#    page_icon="https://avatars.githubusercontent.com/u/167545222?s=200&v=4", # official logo
-   layout="wide",
-   initial_sidebar_state="expanded",
+    page_title="MOEST Exam Center Calculator",
+    page_icon=":school:",
+    layout="wide",
+    initial_sidebar_state="expanded",
     theme="light",  # Default theme is light
 )
 
-#  Custom CSS 
+# Custom CSS 
 custom_css = """
 <style>
 .st-ag.st-e4.st-e5 {
@@ -41,11 +39,12 @@ if 'filter_type' not in st.session_state:
 if 'filter_value' not in st.session_state:
     st.session_state.filter_value = None
 
-#Maps setup
-m = folium.Map(location=[27.7007, 85.3001], zoom_start=12, )
-fg = folium.FeatureGroup(name="Allocated Centers")
+# Maps setup
+m = folium.Map(location=[27.7007, 85.3001], zoom_start=12)
+fg_centers = folium.FeatureGroup(name="Allocated Centers")
+fg_schools = folium.FeatureGroup(name="Schools")
 
-#Sidebar
+# Sidebar
 with st.sidebar:
 
     add_side_header = st.sidebar.title("Random Center Calculator")
@@ -66,8 +65,8 @@ tab1, tab2, tab3, tab4, tab5 = st.tabs([
     "School Center Distance",
     "View School Data",
     "View Centers Data",
-    "View Pref Data" 
-    ])
+    "View Pref Data"
+])
 
 tab1.subheader("School Center")
 tab2.subheader("School Center Distance")
@@ -126,15 +125,15 @@ def run_center_randomizer(schools_tsv, centers_tsv, prefs_tsv):
     cmd = f"python school_center.py {schools_tsv} {centers_tsv} {prefs_tsv}"
     subprocess.run(cmd, shell=True)
 
-#Function to filter the data
+# Function to filter the data
 def filter_data(df, filter_type, filter_value):
     if filter_type in df.columns:
         df = df[df[filter_type] == filter_value]
         return df
     else:
         st.error(f"{filter_type} is not a valid column in the DataFrame.")
-        return pd.DataFrame() 
-    
+        return pd.DataFrame()
+
 # Run logic after the button is clicked
 if calculate:
     st.session_state.calculate_clicked = True
@@ -162,7 +161,7 @@ if calculate:
             os.unlink(centers_path)
             os.unlink(prefs_path)
 
-            # Set the paths for the output files[UPDATE LATER TO BE FLEXIBLE]
+            # Set the paths for the output files [UPDATE LATER TO BE FLEXIBLE]
             school_center_file = "results/school-center.tsv"
             school_center_distance_file = "results/school-center-distance.tsv"
 
@@ -189,51 +188,65 @@ if st.session_state.calculate_clicked and st.session_state.calculation_completed
 
         # Display an input field based on the selected filter type
         if st.session_state.filter_type:
-         if st.session_state.filter_type == 'school':
-          # Create filter options with school name and code
-          filter_options = [f"{code} | {name}" for name, code in zip(df_school_center['school'].unique(), df_school_center['scode'].unique())]
+            if st.session_state.filter_type == 'school':
+                # Create filter options with school name and code
+                filter_options = [f"{code} | {name}" for name, code in zip(df_school_center['school'].unique(), df_school_center['scode'].unique())]
 
-         elif st.session_state.filter_type == 'center':
-          # Create filter options with center name and code
-          filter_options = [f"{code} | {name}" for name, code in zip(df_school_center['center'].unique(), df_school_center['cscode'].unique())]
+            elif st.session_state.filter_type == 'center':
+                # Create filter options with center name and code
+                filter_options = [f"{code} | {name}" for name, code in zip(df_school_center['center'].unique(), df_school_center['cscode'].unique())]
 
-         # Display a selectbox for selection
-         st.session_state.filter_value = tab1.selectbox(f"Select a value for {st.session_state.filter_type}:", filter_options)
+            # Display a selectbox for selection
+            st.session_state.filter_value = tab1.selectbox(f"Select a value for {st.session_state.filter_type}:", filter_options)
 
-         # Split the selected value to extract name and code
-         code, name = st.session_state.filter_value.split(' | ')
+            # Split the selected value to extract name and code
+            code, name = st.session_state.filter_value.split(' | ')
 
-         # Filter the DataFrame based on the selected type and value
-         filtered_df = filter_data(df_school_center, st.session_state.filter_type, name)
+            # Filter the DataFrame based on the selected type and value
+            filtered_df = filter_data(df_school_center, st.session_state.filter_type, name)
 
-        if st.session_state.filter_value:
-            # Remove thousand separator comma in scode and cscode 
-            styled_df  = filtered_df.style.format({
-              "cscode": lambda x: '{:.0f}'.format(x),
-               "scode": lambda x: '{:.0f}'.format(x)
-            })
-            tab1.dataframe(styled_df , hide_index=True)
-            tab1.subheader('Map')
-            tab1.divider()
-            for index, center in filtered_df.iterrows():
-                fg.add_child(
-                    folium.Marker(
-                        location=[center.center_lat, center.center_long],
-                        popup=f"{(center.center).title()}\nAllocation: {center.allocation}",
-                        tooltip=f"{center.center}",
-                        icon=folium.Icon(color="red")
-                    )
-                )
-            m.add_child(fg)
-            with tab1:
-                st_folium( m, width=1200, height=400 )
-        
+            if st.session_state.filter_value:
+                # Remove thousand separator comma in scode and cscode 
+                filtered_df['scode'] = filtered_df['scode'].astype(int)
+                filtered_df['cscode'] = filtered_df['cscode'].astype(int)
+
+                # Reset index after filtering
+                filtered_df.reset_index(drop=True, inplace=True)
+
+                # Add serial number starting from 1
+                filtered_df.index = range(1, len(filtered_df) + 1)
+
+                # Plot schools and centers on the map
+                for index, center in filtered_df.iterrows():
+                    if st.session_state.filter_type == 'school':
+                        fg_schools.add_child(
+                            folium.Marker(
+                                location=[center.school_lat, center.school_long],
+                                popup=f"{(center.school).title()}\nAllocation: {center.allocation}",
+                                tooltip=f"{center.school}",
+                                icon=folium.Icon(color="blue", icon="university", prefix='fa')
+                            )
+                        )
+                    elif st.session_state.filter_type == 'center':
+                        fg_centers.add_child(
+                            folium.Marker(
+                                location=[center.center_lat, center.center_long],
+                                popup=f"{(center.center).title()}\nAllocation: {center.allocation}",
+                                tooltip=f"{center.center}",
+                                icon=folium.Icon(color="red", icon="heart", prefix='fa')
+                            )
+                        )
+                m.add_child(fg_centers)
+                m.add_child(fg_schools)
+                with tab1:
+                    st_folium(m, width=1200, height=400)
+
         tab1.divider()
         tab1.subheader('All Data')
         tab1.dataframe(df_school_center)
     else:
         tab1.info("No calculated data available.", icon="ℹ️")
-    
+
     if 'school_center_distance' in st.session_state.calculated_data:
         df = pd.read_csv(st.session_state.calculated_data['school_center_distance'], sep="\t")
         tab2.dataframe(df)
